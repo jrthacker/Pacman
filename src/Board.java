@@ -203,7 +203,7 @@ public class Board extends JPanel implements ActionListener {
     private final int validSpeeds[] = {2, 4, 6, 8};
     private final int maxSpeed = 3;
 
-    private int currentSpeed = 1;
+    private int speed = 1;
     private int[] levelData;
     private Timer timer;
     private Timer scatter;
@@ -313,9 +313,9 @@ public class Board extends JPanel implements ActionListener {
                 scare.stop();
                 flashing.stop();
                 chase.start();
-                int random = (int) (Math.random() * (currentSpeed + 1));
-                if (random > currentSpeed) {
-                    random = currentSpeed;
+                int random = (int) (Math.random() * (speed + 1));
+                if (random > speed) {
+                    random = speed;
                 }
                 for (int i = 0; i < 4; i++) {
                     if (ghostSpeed[i] == 0) {
@@ -337,7 +337,7 @@ public class Board extends JPanel implements ActionListener {
     }
     
  // show the introduction screen and exit controls
-    private void showIntroScreen(Graphics2D g) {
+    private void drawIntro(Graphics2D g) {
         g.setColor(new Color(0, 32, 48));
         g.fillRect(50, BOARD_SIZE / 2 - 30, BOARD_SIZE - 100, 50 +  SQUARE_SIZE);
         g.setColor(Color.white);
@@ -351,29 +351,16 @@ public class Board extends JPanel implements ActionListener {
         g.drawString(introString2, (BOARD_SIZE - metr.stringWidth(introString2)) / 2, BOARD_SIZE / 2 + SQUARE_SIZE);
     }
 
-    // animate pacman
-    private void doAnim() {
-    	// count down the animations 
-        animatePacman--;
-        
-        if (animatePacman <= 0) {
-            animatePacman = ANIMATION_DELAY; // reset counter
-            animatePosition = animatePosition + animateDirection; 
-
-            if (animatePosition == (ANIMATION_COUNT - 1) || animatePosition == 0) {
-                animateDirection = -animateDirection;
-            }
-        }
-    }
+    
 
     // gameplay, account for lives lost or else move pacman and redraw maze with ghosts
-    private void playGame(Graphics2D g2d) {
+    private void playGame(Graphics2D g) {
         if (lifeLost) {
             death();
         } else {
             movePacman();
-            drawPacman(g2d);
-            moveGhosts(g2d);
+            drawPacman(g);
+            moveGhosts(g);
             checkMaze();
         }
     }
@@ -405,8 +392,8 @@ public class Board extends JPanel implements ActionListener {
         if (finished) { // if finished, increase score, level, and increase enemy speed
             score += 250;
             level += 1;
-            if (currentSpeed < maxSpeed) {
-                currentSpeed++;
+            if (speed < maxSpeed) {
+                speed++;
             }
             levelNum++;
             if (levelNum == 4)
@@ -420,10 +407,10 @@ public class Board extends JPanel implements ActionListener {
         if (livesLeft == 0) {
             gameRunning = false;
         }
-        continueLevel(); // pacman respawns after losing life
+        contLevel(); // pacman respawns after losing life
     }
     // ghost movement behavior
-    private void moveGhosts(Graphics2D g2d) {
+    private void moveGhosts(Graphics2D g) {
         int i;
         int pos;
         int count;
@@ -658,24 +645,24 @@ public class Board extends JPanel implements ActionListener {
             enemyY[i] = enemyY[i] + (enemyMoveY[i] * ghostSpeed[i]);
             // use timer flags to determine ghost state
             if (ghostRecovering)
-                g2d.drawImage(scaredIcon, enemyX[i] + 1, enemyY[i] + 1, this);
+                g.drawImage(scaredIcon, enemyX[i] + 1, enemyY[i] + 1, this);
             else if (ghostScared) {
-                    g2d.drawImage(scaredghost, enemyX[i] + 1, enemyY[i] + 1, this);
+                    g.drawImage(scaredghost, enemyX[i] + 1, enemyY[i] + 1, this);
             }
             else {
             	// switch case to select correct color of ghost sprite
                 switch(i) {
                 case 0:
-                    g2d.drawImage(redghost, enemyX[i] + 1, enemyY[i] + 1, this);
+                    g.drawImage(redghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 case 1:
-                    g2d.drawImage(pinkghost, enemyX[i] + 1, enemyY[i] + 1, this);
+                    g.drawImage(pinkghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 case 2:
-                    g2d.drawImage(powderghost, enemyX[i] + 1, enemyY[i] + 1, this);
+                    g.drawImage(powderghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 case 3:
-                    g2d.drawImage(orangeghost, enemyX[i] + 1, enemyY[i] + 1, this);
+                    g.drawImage(orangeghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 }
             }
@@ -778,116 +765,129 @@ public class Board extends JPanel implements ActionListener {
         pacX = pacX + PACSPEED * pacMoveX;
         pacY = pacY + PACSPEED * pacMoveY;
     }
+    
+    // animate pacman
+    private void doAnim() {
+    	// count down the animations 
+        animatePacman--;
+        if (animatePacman <= 0) {
+            animatePacman = ANIMATION_DELAY; // reset counter
+            animatePosition = animatePosition + animateDirection; 
+            if (animatePosition == (ANIMATION_COUNT - 1) || animatePosition == 0) {
+                animateDirection = -animateDirection;
+            }
+        }
+    }
     // use if else to check for pacman's direction and draw him in that direction
-    private void drawPacman(Graphics2D g2d) {
+    private void drawPacman(Graphics2D g) {
         if (viewX == -1) {
-            drawPacmanLeft(g2d);
+            drawPacmanLeft(g);
         } else if (viewX == 1) {
-            drawPacmanRight(g2d);
+            drawPacmanRight(g);
         } else if (viewY == -1) {
-            drawPacmanUp(g2d);
+            drawPacmanUp(g);
         } else {
-            drawPacmanDown(g2d);
+            drawPacmanDown(g);
         }
     }
-    private void drawPacmanUp(Graphics2D g2d) {
+    private void drawPacmanUp(Graphics2D g) {
         switch (animatePosition) {
             case 1:
-                g2d.drawImage(pacup1, pacX, pacY, this);
+                g.drawImage(pacup1, pacX, pacY, this);
                 break;
             case 2:
-                g2d.drawImage(pacup2, pacX, pacY, this);
+                g.drawImage(pacup2, pacX, pacY, this);
                 break;
             case 3:
-                g2d.drawImage(pacup3, pacX, pacY, this);
+                g.drawImage(pacup3, pacX, pacY, this);
                 break;
             default:
-                g2d.drawImage(pacman, pacX, pacY, this);
-                break;
-        }
-    }
-    private void drawPacmanDown(Graphics2D g2d) {
-        switch (animatePosition) {
-            case 1:
-                g2d.drawImage(pacdown1, pacX, pacY, this);
-                break;
-            case 2:
-                g2d.drawImage(pacdown2, pacX, pacY, this);
-                break;
-            case 3:
-                g2d.drawImage(pacdown3, pacX, pacY, this);
-                break;
-            default:
-                g2d.drawImage(pacman, pacX, pacY, this);
+                g.drawImage(pacman, pacX, pacY, this);
                 break;
         }
     }
-    private void drawPacmanLeft(Graphics2D g2d) {
+    private void drawPacmanDown(Graphics2D g) {
         switch (animatePosition) {
             case 1:
-                g2d.drawImage(pacleft1, pacX, pacY, this);
+                g.drawImage(pacdown1, pacX, pacY, this);
                 break;
             case 2:
-                g2d.drawImage(pacleft2, pacX, pacY, this);
+                g.drawImage(pacdown2, pacX, pacY, this);
                 break;
             case 3:
-                g2d.drawImage(pacleft3, pacX, pacY, this);
+                g.drawImage(pacdown3, pacX, pacY, this);
                 break;
             default:
-                g2d.drawImage(pacman, pacX, pacY, this);
+                g.drawImage(pacman, pacX, pacY, this);
+                break;
+        }
+    }
+    private void drawPacmanLeft(Graphics2D g) {
+        switch (animatePosition) {
+            case 1:
+                g.drawImage(pacleft1, pacX, pacY, this);
+                break;
+            case 2:
+                g.drawImage(pacleft2, pacX, pacY, this);
+                break;
+            case 3:
+                g.drawImage(pacleft3, pacX, pacY, this);
+                break;
+            default:
+                g.drawImage(pacman, pacX, pacY, this);
                 break;
         }
     }
 
-    private void drawPacmanRight(Graphics2D g2d) {
+    private void drawPacmanRight(Graphics2D g) {
         switch (animatePosition) {
             case 1:
-                g2d.drawImage(pacright1, pacX, pacY, this);
+                g.drawImage(pacright1, pacX, pacY, this);
                 break;
             case 2:
-                g2d.drawImage(pacright2, pacX, pacY, this);
+                g.drawImage(pacright2, pacX, pacY, this);
                 break;
             case 3:
-                g2d.drawImage(pacright3, pacX, pacY, this);
+                g.drawImage(pacright3, pacX, pacY, this);
                 break;
             default:
-                g2d.drawImage(pacman, pacX, pacY, this);
+                g.drawImage(pacman, pacX, pacY, this);
                 break;
         }
     }
 
     // draw the maze
-    private void drawMaze(Graphics2D g2d) {
+    private void drawMaze(Graphics2D g) {
         int i = 0;
         int x, y;
         for (y = 0; y < BOARD_SIZE; y += SQUARE_SIZE) {
             for (x = 0; x < BOARD_SIZE; x += SQUARE_SIZE) {
-                g2d.setColor(mazeColor);
-                g2d.setStroke(new BasicStroke(2));
+                g.setColor(mazeColor);
+                g.setStroke(new BasicStroke(2));
                 if ((levelData[i] & 1) != 0) {  // draw barriers
-                    g2d.drawLine(x, y, x, y + SQUARE_SIZE - 1);
+                    g.drawLine(x, y, x, y + SQUARE_SIZE - 1); // draw line above
                 }
                 if ((levelData[i] & 2) != 0) { 
-                    g2d.drawLine(x, y, x + SQUARE_SIZE - 1, y);
+                    g.drawLine(x, y, x + SQUARE_SIZE - 1, y); // draw line to left 
                 }
                 if ((levelData[i] & 4) != 0) { 
-                    g2d.drawLine(x + SQUARE_SIZE - 1, y, x + SQUARE_SIZE - 1,
-                            y + SQUARE_SIZE - 1);
+                    g.drawLine(x + SQUARE_SIZE - 1, y, x + SQUARE_SIZE - 1,
+                            y + SQUARE_SIZE - 1); // draw line right
                 }
                 if ((levelData[i] & 8) != 0) { 
-                    g2d.drawLine(x, y + SQUARE_SIZE - 1, x + SQUARE_SIZE - 1,
+                    g.drawLine(x, y + SQUARE_SIZE - 1, x + SQUARE_SIZE - 1, // draw line below
                             y + SQUARE_SIZE - 1);
                 }
                 if ((levelData[i] & 16) != 0) { // regular pellets
-                    g2d.setColor(dotColor);
-                    g2d.fillRect(x + 22, y + 22, 4, 4);
+                    g.setColor(dotColor);
+                    g.fillRect(x + 22, y + 22, 4, 4);
                 }
                 if ((levelData[i] & 32) != 0) { // power pellets
-                    g2d.setColor(dotColor);
-                    g2d.fillRect(x + 15, y + 15, 16, 16);
+                    g.setColor(dotColor);
+                    g.fillRect(x + 15, y + 15, 16, 16);
                 }
-                if ((levelData[i] & 64) != 0) { // power pellets
-                	g2d.drawImage(cherry, x, y, this);
+                if ((levelData[i] & 64) != 0) { // bonus cherries
+                	g.drawImage(cherry, x, y, this);
                 }
                 i++;
             }
@@ -897,7 +897,7 @@ public class Board extends JPanel implements ActionListener {
 
     // initialize game values
     private void initGame() {
-    	currentSpeed = 1; // start at slow speed
+    	speed = 1; // start at slow speed
         livesLeft = 4;
         score = 0;
         level = 1;
@@ -908,6 +908,7 @@ public class Board extends JPanel implements ActionListener {
     // set level maze and rotate through level designs
     private void initLevel(int levelNum) {
         int i;
+        // switch statement to select level design
         switch (levelNum) {
         case (0) :
         	for (i = 0; i < BLOCKS_N * BLOCKS_N; i++) {
@@ -930,15 +931,17 @@ public class Board extends JPanel implements ActionListener {
             }
         	break;
         }
+        // reset ghost flags
         ghostRecovering = false;
         ghostScared = false;
+        // scatter ghosts
         scatter.start();
         ghostScatter = true;
-        continueLevel();
+        contLevel();
     }
 
     // lose life and continue level from previous state
-    private void continueLevel() {
+    private void contLevel() {
         int i;
         int moveX = 1;
         int random;
@@ -950,16 +953,17 @@ public class Board extends JPanel implements ActionListener {
         requestY = 0;
         viewX = -1;
         viewY = 0;
-        lifeLost = false;
+        lifeLost = false; // reset death flag
         for (i = 0; i < 4; i++) { // respawn ghosts
             enemyY[i] = 4 * SQUARE_SIZE;
             enemyX[i] = 4 * SQUARE_SIZE;
             enemyMoveY[i] = 0;
             enemyMoveX[i] = moveX;
             moveX = -moveX;
-            random = (int) (Math.random() * (currentSpeed + 1));
-            if (random > currentSpeed) {
-                random = currentSpeed;
+            // randomly select variable ghost speed
+            random = (int) (Math.random() * (speed + 1));
+            if (random > speed) {
+                random = speed;
             }
             ghostSpeed[i] = validSpeeds[random];
         }
@@ -999,20 +1003,20 @@ public class Board extends JPanel implements ActionListener {
     }
 
     private void doDrawing(Graphics g) {
-        Graphics2D g2d = (Graphics2D) g;
-        g2d.setColor(Color.black);
-        g2d.fillRect(0, 0, d.width, d.height);
-        drawMaze(g2d);
-        drawScore(g2d);
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setColor(Color.black);
+        g2.fillRect(0, 0, d.width, d.height);
+        drawMaze(g2);
+        drawScore(g2);
         doAnim();
         if (gameRunning) {
-            playGame(g2d);
+            playGame(g2);
         } else {
-            showIntroScreen(g2d);
+            drawIntro(g2);
         }
-        g2d.drawImage(ii, 5, 5, this);
+        //g2.drawImage(ii, 5, 5, this);
         Toolkit.getDefaultToolkit().sync();
-        g2d.dispose();
+        g2.dispose();
     }
     
     
