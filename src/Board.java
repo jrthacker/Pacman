@@ -12,6 +12,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.File;
+
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -20,56 +24,60 @@ public class Board extends JPanel implements ActionListener {
 
     private static final long serialVersionUID = 1L;
     private Dimension d;
-    private final Font smallFont = new Font("Times New Roman", Font.BOLD, 14);
+    private final Font smallFont = new Font("Times New Roman", Font.BOLD, 24);
 
     private Image ii;
     private final Color dotColor = new Color(192, 192, 0); // yellow color
     private Color mazeColor;
 
     private boolean inGame = false;
-    private boolean dying = false;
+    private boolean lifeLost = false;
     private boolean ghostScatter = false;
     private boolean ghostScared = false;
     private boolean ghostRecovering = false;
 
-    private final int BLOCK_SIZE = 24;
-    private final int N_BLOCKS = 15;
-    private final int SCREEN_SIZE = N_BLOCKS * BLOCK_SIZE;
+    private final int BLOCK_SIZE = 48;
+    private final int BLOCKS_N = 15;
+    private final int SCREEN_SIZE = BLOCKS_N * BLOCK_SIZE;
     private final int PAC_ANIM_DELAY = 2;
     private final int PACMAN_ANIM_COUNT = 4;
-    private final int PACMAN_SPEED = 6;
+    private final int PACSPEED = 8;
 
     private int pacAnimCount = PAC_ANIM_DELAY;
     private int pacAnimDir = 1;
     private int pacmanAnimPos = 0;
     private int ghosts = 4;
-    private int pacsLeft, score, level;
-    private int[] dx, dy;
-    private int[] ghost_x, ghost_y, ghost_dx, ghost_dy, ghostSpeed;
+    private int livesLeft, score, level;
+    private int[] moveX, moveY;
+    private int[] enemyX, enemyY, enemyMoveX, enemyMoveY, ghostSpeed;
 
-    private Image redghost, pinkghost, powderghost, orangeghost, scaredghost, scaredghost2, scaredIcon;
-    private Image pacman1, pacman2up, pacman2left, pacman2right, pacman2down;
-    private Image pacman3up, pacman3down, pacman3left, pacman3right;
-    private Image pacman4up, pacman4down, pacman4left, pacman4right;
+    private Image redghost, pinkghost, powderghost, orangeghost, scaredghost, scaredghost2, scaredIcon, cherry;
+    private Image pacman, pacup1, pacleft1, pacright1, pacdown1;
+    private Image pacup2, pacdown2, pacleft2, pacright2;
+    private Image pacup3, pacdown3, pacleft3, pacright3;
 
-    private int pacman_x, pacman_y, pacmand_x, pacmand_y;
-    private int req_dx, req_dy, view_dx, view_dy;
+    private int pacX, pacY, pacMoveX, pacMoveY;
+    private int requestX, requestY, viewX, viewY;
+    
+    private static Clip clip;
+    private File beginning, eatGhost, death, eatFruit, chomp;
+    private boolean chompplaying = false;
 
    
 
-    private final short levelData[] = {
+    private final int mazeData[] = {
 
             19, 26, 26, 26, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 22,
 
             21, 0, 0, 0, 17, 16, 16, 16, 16, 16, 16, 16, 16, 16, 20,
 
-            37, 0, 0, 0, 17, 16, 16, 16, 16, 16, 16, 16, 16, 16, 36,
+            37, 0, 0, 0, 17, 16, 16, 16, 64, 16, 16, 16, 16, 16, 36,
 
             21, 0, 0, 0, 17, 16, 16, 24, 16, 16, 16, 16, 16, 16, 20,
 
             17, 18, 18, 18, 16, 16, 20, 0, 17, 16, 16, 16, 16, 16, 20,
 
-            17, 16, 16, 16, 16, 16, 20, 0, 17, 16, 16, 16, 16, 24, 20,
+            17, 16, 16, 16, 16, 16, 20, 0, 17, 16, 16, 64, 16, 24, 20,
 
             17, 16, 16, 32, 24, 24, 28, 0, 25, 24, 24, 24, 28, 0, 21,
 
@@ -85,27 +93,27 @@ public class Board extends JPanel implements ActionListener {
 
             17, 20, 0, 0, 0, 0, 17, 16, 16, 16, 16, 16, 32, 16, 20,
 
-            17, 16, 18, 18, 18, 18, 16, 16, 16, 16, 16, 16, 16, 16, 20,
+            17, 16, 18, 66, 18, 18, 16, 16, 16, 16, 16, 16, 16, 16, 20,
 
             25, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 28
 
             };
 
-            private final short levelData2[] = {
+            private final int mazeData2[] = {
 
             19, 26, 42, 26, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 22,
 
             21, 0, 0, 0, 17, 16, 16, 16, 24, 24, 24, 24, 24, 16, 20,
 
-            21, 0, 0, 0, 17, 16, 16, 20, 0, 0, 0, 0, 0, 17, 20,
+            69, 0, 0, 0, 17, 16, 16, 20, 0, 0, 0, 0, 0, 17, 20,
 
             21, 0, 0, 0, 17, 16, 32, 24, 18, 18, 18, 18, 18, 16, 20,
 
-            17, 18, 18, 18, 16, 16, 20, 0, 17, 16, 16, 16, 16, 16, 20,
+            17, 18, 18, 18, 16, 16, 20, 0, 17, 16, 16, 64, 16, 16, 20,
 
             17, 16, 16, 16, 16, 16, 20, 0, 17, 16, 16, 16, 16, 24, 20,
 
-            25, 16, 16, 16, 24, 24, 28, 0, 25, 24, 24, 40, 28, 0, 21,
+            25, 16, 16, 64, 24, 24, 28, 0, 25, 24, 24, 40, 28, 0, 21,
 
             1, 17, 16, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21,
 
@@ -125,7 +133,7 @@ public class Board extends JPanel implements ActionListener {
 
             };
 
-            private final short levelData3[] = {
+            private final int mazeData3[] = {
 
             19, 26, 26, 26, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 22,
 
@@ -139,13 +147,13 @@ public class Board extends JPanel implements ActionListener {
 
             17, 16, 16, 16, 16, 16, 20, 0, 17, 16, 16, 16, 16, 24, 20,
 
-            17, 16, 16, 16, 24, 24, 28, 0, 25, 24, 24, 24, 28, 0, 21,
+            17, 16, 64, 16, 24, 24, 28, 0, 25, 24, 24, 24, 28, 0, 21,
 
             17, 16, 16, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21,
 
             17, 16, 16, 16, 18, 18, 18, 18, 18, 18, 18, 26, 18, 18, 20,
 
-            17, 16, 16, 16, 16, 16, 16, 16, 16, 16, 20, 0, 17, 16, 20,
+            17, 16, 16, 16, 16, 16, 16, 16, 16, 64, 20, 0, 17, 16, 20,
 
             17, 16, 24, 24, 24, 24, 24, 16, 16, 16, 20, 0, 33, 16, 20,
 
@@ -153,15 +161,15 @@ public class Board extends JPanel implements ActionListener {
 
             17, 16, 18, 18, 18, 18, 18, 16, 16, 16, 20, 0, 17, 16, 20,
 
-            25, 24, 24, 24, 24, 24, 24, 24, 24, 24, 16, 18, 16, 16, 20,
+            25, 24, 24, 24, 24, 24, 24, 24, 24, 24, 16, 66, 16, 16, 20,
 
             11, 8, 8, 8, 8, 8, 8, 8, 8, 8, 41, 24, 24, 24, 28
 
             };
 
-            private final short levelData4[] = {
+            private final int mazeData4[] = {
 
-            19, 26, 26, 26, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 22,
+            19, 26, 26, 26, 18, 18, 18, 18, 66, 18, 18, 18, 18, 18, 22,
 
             21, 0, 0, 0, 17, 16, 16, 16, 24, 24, 24, 24, 24, 16, 20,
 
@@ -169,7 +177,7 @@ public class Board extends JPanel implements ActionListener {
 
             21, 0, 0, 0, 0, 0, 17, 24, 18, 18, 18, 18, 18, 16, 20,
 
-            17, 18, 18, 18, 22, 0, 21, 0, 17, 16, 16, 16, 16, 16, 20,
+            17, 18, 18, 18, 22, 0, 21, 0, 17, 16, 16, 16, 16, 16, 68,
 
             17, 16, 16, 16, 20, 0, 21, 0, 17, 16, 16, 16, 16, 24, 20,
 
@@ -187,16 +195,16 @@ public class Board extends JPanel implements ActionListener {
 
             1, 17, 18, 18, 18, 18, 18, 16, 16, 16, 20, 0, 17, 16, 20,
 
-            9, 17, 16, 16, 16, 16, 16, 16, 16, 16, 16, 18, 32, 16, 20,
+            9, 17, 16, 64, 16, 16, 16, 16, 16, 16, 16, 18, 32, 16, 20,
 
-            25, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 28
+            27, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 28
 
             };
-    private final int validSpeeds[] = {1, 2, 3, 4, 6};
+    private final int validSpeeds[] = {2, 4, 6, 8, 12};
     private final int maxSpeed = 4;
 
     private int currentSpeed = 1;
-    private short[] screenData;
+    private int[] levelData;
     private Timer timer;
     private Timer scatter;
     private Timer scare;
@@ -205,31 +213,35 @@ public class Board extends JPanel implements ActionListener {
     private Timer flashing;
     private int currentLevel = 0;
     
-
+    // Constructor for the Board, load images and initialize vars and board state
     public Board() {
         loadImages();
-        initVariables();
         initBoard();
+        initVariables();
+        
     }
     
+    // adds controls to the board and sets background
     private void initBoard() {
-        addKeyListener(new TAdapter());
+        addKeyListener(new Controls());
         setFocusable(true);
         setBackground(Color.black);
     }
 
+    // provides initial values for a new game
     private void initVariables() {
-        screenData = new short[N_BLOCKS * N_BLOCKS];
+        levelData = new int[BLOCKS_N * BLOCKS_N];
         mazeColor = new Color(5, 5, 200);   // blue
-        d = new Dimension(400, 400);
-        ghost_x = new int[ghosts];
-        ghost_dx = new int[ghosts];
-        ghost_y = new int[ghosts];
-        ghost_dy = new int[ghosts];
+        d = new Dimension(1600, 1600);
+        enemyX = new int[ghosts];
+        enemyMoveX = new int[ghosts];
+        enemyY = new int[ghosts];
+        enemyMoveY = new int[ghosts];
         ghostSpeed = new int[ghosts];
-        dx = new int[4];
-        dy = new int[4];
+        moveX = new int[4];
+        moveY = new int[4];
         timer = new Timer(40, this);
+        // scatter timer, ghosts scatter to corners
         scatter = new Timer(7000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 ghostScatter = false;
@@ -237,6 +249,7 @@ public class Board extends JPanel implements ActionListener {
                 chase.start();
             }
         });
+        // chase timer, ghosts chase pacman for a set time before scattering
         chase = new Timer(21000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 ghostScatter = true;
@@ -244,6 +257,7 @@ public class Board extends JPanel implements ActionListener {
                 scatter.start();
             }
         });
+        // recover timer, ghosts are beginning to recover from being scared
         recover = new Timer(5000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 ghostRecovering = true;
@@ -252,6 +266,7 @@ public class Board extends JPanel implements ActionListener {
                 recover.stop();
             }
         });
+        // flashing of ghost pixels
         flashing = new Timer (250, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 if (scaredIcon == scaredghost)
@@ -260,6 +275,7 @@ public class Board extends JPanel implements ActionListener {
                     scaredIcon = scaredghost;
             }
         });
+        // timer for how scared the ghosts are, ghosts scatter and start to recover after 5 seconds
         scare = new Timer(10000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 ghostScared = false;
@@ -274,13 +290,14 @@ public class Board extends JPanel implements ActionListener {
                 }
                 for (int i = 0; i < 4; i++) {
                     if (ghostSpeed[i] == 0) {
-                        ghost_x[i] = 4 * BLOCK_SIZE;
-                        ghost_y[i] = 4 * BLOCK_SIZE;
+                        enemyX[i] = 4 * BLOCK_SIZE;
+                        enemyY[i] = 4 * BLOCK_SIZE;
                         ghostSpeed[i] = validSpeeds[random];
                     }
                 }
             }
         });
+        // overall game timer
         timer.start();
     }
 
@@ -290,6 +307,7 @@ public class Board extends JPanel implements ActionListener {
         initGame();
     }
 
+    // animate pacman
     private void doAnim() {
         pacAnimCount--;
         if (pacAnimCount <= 0) {
@@ -302,8 +320,9 @@ public class Board extends JPanel implements ActionListener {
         }
     }
 
+    // gameplay, account for lives lost or else move pacman and redraw maze with ghosts
     private void playGame(Graphics2D g2d) {
-        if (dying) {
+        if (lifeLost) {
             death();
         } else {
             movePacman();
@@ -312,20 +331,24 @@ public class Board extends JPanel implements ActionListener {
             checkMaze();
         }
     }
-
+    
+    // show the introduction screen and exit controls
     private void showIntroScreen(Graphics2D g2d) {
         g2d.setColor(new Color(0, 32, 48));
-        g2d.fillRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50);
+        g2d.fillRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50 +  BLOCK_SIZE);
         g2d.setColor(Color.white);
-        g2d.drawRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50);
-        String s = "Press Enter to start.";
-        Font small = new Font("Times New Roman", Font.BOLD, 14);
+        g2d.drawRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50 + BLOCK_SIZE);
+        String s = "Press Enter to start";
+        String s2 = "Press ESC to exit and P to Pause";
+        Font small = new Font("Times New Roman", Font.BOLD, 24);
         FontMetrics metr = this.getFontMetrics(small);
         g2d.setColor(Color.white);
         g2d.setFont(small);
         g2d.drawString(s, (SCREEN_SIZE - metr.stringWidth(s)) / 2, SCREEN_SIZE / 2);
+        g2d.drawString(s2, (SCREEN_SIZE - metr.stringWidth(s2)) / 2, SCREEN_SIZE / 2 + BLOCK_SIZE);
     }
 
+    // draw the score at the bottom of the screen
     private void drawScore(Graphics2D g) {
         int i;
         String s;
@@ -333,21 +356,22 @@ public class Board extends JPanel implements ActionListener {
         g.setColor(new Color(96, 128, 255));
         s = "Level: " + level + "        Score: " + score;
         g.drawString(s, 20, SCREEN_SIZE + 16);
-        for (i = 0; i < pacsLeft; i++) {
-            g.drawImage(pacman3left, (i * 28 + 8) + SCREEN_SIZE/2, SCREEN_SIZE + 1, this);
+        for (i = 0; i < livesLeft; i++) {
+            g.drawImage(pacleft2, (i * 56 + 16) + SCREEN_SIZE/2, SCREEN_SIZE + 1, this);
         }
     }
 
+    // check the maze to make sure that all dots have been eaten in order to advance levels
     private void checkMaze() {
-        short i = 0;
+        int i = 0;
         boolean finished = true;
-        while (i < N_BLOCKS * N_BLOCKS && finished) {
-            if ((screenData[i] & 48) != 0) {
-                finished = false;
+        while (i < BLOCKS_N * BLOCKS_N && finished) {
+            if ((levelData[i] & 112) != 0) { // if there are pellets left to eat
+                finished = false; // level continues
             }
             i++;
         }
-        if (finished) {
+        if (finished) { // if finished, increase score, level, and increase enemy speed
             score += 250;
             level += 1;
             if (currentSpeed < maxSpeed) {
@@ -359,227 +383,237 @@ public class Board extends JPanel implements ActionListener {
             initLevel(currentLevel);
         }
     }
+    // if pacman collides with a ghost, reduce number of lives and if 0 then game over
     private void death() {
-        pacsLeft--;
-        if (pacsLeft == 0) {
+        livesLeft--;
+        if (livesLeft == 0) {
             inGame = false;
         }
-        continueLevel();
+        continueLevel(); // pacman respawns after losing life
     }
+    // ghost movement behavior
     private void moveGhosts(Graphics2D g2d) {
-        short i;
+        int i;
         int pos;
         int count;
         for (i = 0; i < ghosts; i++) {
-            if (ghost_x[i] % BLOCK_SIZE == 0 && ghost_y[i] % BLOCK_SIZE == 0) {
-                pos = ghost_x[i] / BLOCK_SIZE + N_BLOCKS * (int) (ghost_y[i] / BLOCK_SIZE);
+            if (enemyX[i] % BLOCK_SIZE == 0 && enemyY[i] % BLOCK_SIZE == 0) {
+                pos = enemyX[i] / BLOCK_SIZE + BLOCKS_N * (int) (enemyY[i] / BLOCK_SIZE);
                 count = 0;
-                if ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1) {
-                    dx[count] = -1;
-                    dy[count] = 0;
+                // check for valid moves for each ghost
+                if ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1) {
+                    moveX[count] = -1;
+                    moveY[count] = 0;
                     count++;
                 }
-                if ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1) {
-                    dx[count] = 0;
-                    dy[count] = -1;
+                if ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1) {
+                    moveX[count] = 0;
+                    moveY[count] = -1;
                     count++;
                 }
-                if ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1) {
-                    dx[count] = 1;
-                    dy[count] = 0;
+                if ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1) {
+                    moveX[count] = 1;
+                    moveY[count] = 0;
                     count++;
                 }
-                if ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1) {
-                    dx[count] = 0;
-                    dy[count] = 1;
+                if ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1) {
+                    moveX[count] = 0;
+                    moveY[count] = 1;
                     count++;
                 }
                 if (count == 0) {
-                    if ((screenData[pos] & 15) == 15) {
-                        ghost_dx[i] = 0;
-                        ghost_dy[i] = 0;
+                    if ((levelData[pos] & 15) == 15) {
+                        enemyMoveX[i] = 0;
+                        enemyMoveY[i] = 0;
                     } else {
-                        ghost_dx[i] = -ghost_dx[i];
-                        ghost_dy[i] = -ghost_dy[i];
+                        enemyMoveX[i] = -enemyMoveX[i];
+                        enemyMoveY[i] = -enemyMoveY[i];
                     }
 
                 } else {
                     switch(i) {
                     case 0: // red ghost
+                    	// scared behavior is to move up and to left
                         if (ghostScatter || ghostScared) {
-                            if ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1) {
-                                ghost_dx[i] = -1;
-                                ghost_dy[i] = 0;
+                            if ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1) {
+                                enemyMoveX[i] = -1;
+                                enemyMoveY[i] = 0;
                             }
-                            else if ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1) {
-                                ghost_dx[i] = 0;
-                                ghost_dy[i] = -1;
+                            else if ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1) {
+                                enemyMoveX[i] = 0;
+                                enemyMoveY[i] = -1;
                             }
                             else {
                                 count = (int) (Math.random() * count);
                                 if (count > 3) {
                                     count = 3;
                                 }
-                                ghost_dx[i] = dx[count];
-                                ghost_dy[i] = dy[count];
+                                enemyMoveX[i] = moveX[count];
+                                enemyMoveY[i] = moveY[count];
                             }
                         }
-                        else if ((ghost_x[i] - pacman_x) > 0 && ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1)) {
-                            ghost_dx[i] = -1;
-                            ghost_dy[i] = 0;
+                        // chase behavior is to follow pacman directly
+                        else if ((enemyX[i] - pacX) > 0 && ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1)) {
+                            enemyMoveX[i] = -1;
+                            enemyMoveY[i] = 0;
                         }
-                        else if ((ghost_y[i] - pacman_y) > 0 && ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1)) {
-                            ghost_dx[i] = 0;
-                            ghost_dy[i] = -1;
+                        else if ((enemyY[i] - pacY) > 0 && ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1)) {
+                            enemyMoveX[i] = 0;
+                            enemyMoveY[i] = -1;
                         }
-                        else if ((pacman_x - ghost_x[i]) > 0 && ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1)) {
-                            ghost_dx[i] = 1;
-                            ghost_dy[i] = 0;
+                        else if ((pacX - enemyX[i]) > 0 && ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1)) {
+                            enemyMoveX[i] = 1;
+                            enemyMoveY[i] = 0;
                         }
-                        else if ((pacman_y - ghost_y[i]) > 0 && ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1)) {
-                            ghost_dx[i] = 0;
-                            ghost_dy[i] = 1;
+                        else if ((pacY - enemyY[i]) > 0 && ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1)) {
+                            enemyMoveX[i] = 0;
+                            enemyMoveY[i] = 1;
                         }
                         else {
                             count = (int) (Math.random() * count);
                             if (count > 3) {
                                 count = 3;
                             }
-                            ghost_dx[i] = dx[count];
-                            ghost_dy[i] = dy[count];
+                            enemyMoveX[i] = moveX[count];
+                            enemyMoveY[i] = moveY[count];
                         }
                         break;
                     case 1: // pink ghost
+                    	// scared behavior is to move up and to the right
                         if (ghostScatter) {
-                            if ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1) {
-                                ghost_dx[i] = 1;
-                                ghost_dy[i] = 0;
+                            if ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1) {
+                                enemyMoveX[i] = 1;
+                                enemyMoveY[i] = 0;
                             }
-                            else if ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1) {
-                                ghost_dx[i] = 0;
-                                ghost_dy[i] = -1;
+                            else if ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1) {
+                                enemyMoveX[i] = 0;
+                                enemyMoveY[i] = -1;
                             }
                             else {
                                 count = (int) (Math.random() * count);
                                 if (count > 3) {
                                     count = 3;
                                 }
-                                ghost_dx[i] = dx[count];
-                                ghost_dy[i] = dy[count];
+                                enemyMoveX[i] = moveX[count];
+                                enemyMoveY[i] = moveY[count];
                             }
                         }
-                        else if ((ghost_x[i] - (pacman_x + 4 * pacmand_x * PACMAN_SPEED)) > 0 && ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1)) {
-                            ghost_dx[i] = -1;
-                            ghost_dy[i] = 0;
+                        // chase behavior is to try to move 4 spots ahead of pacman
+                        else if ((enemyX[i] - (pacX + 4 * pacMoveX * PACSPEED)) > 0 && ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1)) {
+                            enemyMoveX[i] = -1;
+                            enemyMoveY[i] = 0;
                         }
-                        else if ((ghost_y[i] - (pacman_y + 4 * pacmand_y * PACMAN_SPEED)) > 0 && ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1)) {
-                            ghost_dx[i] = 0;
-                            ghost_dy[i] = -1;
+                        else if ((enemyY[i] - (pacY + 4 * pacMoveY * PACSPEED)) > 0 && ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1)) {
+                            enemyMoveX[i] = 0;
+                            enemyMoveY[i] = -1;
                         }
-                        else if (((pacman_x + 4 * pacmand_x * PACMAN_SPEED) - ghost_x[i]) > 0 && ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1)) {
-                            ghost_dx[i] = 1;
-                            ghost_dy[i] = 0;
+                        else if (((pacX + 4 * pacMoveX * PACSPEED) - enemyX[i]) > 0 && ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1)) {
+                            enemyMoveX[i] = 1;
+                            enemyMoveY[i] = 0;
                         }
-                        else if (((pacman_y + 4 * pacmand_y * PACMAN_SPEED) - ghost_y[i]) > 0 && ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1)) {
-                            ghost_dx[i] = 0;
-                            ghost_dy[i] = 1;
+                        else if (((pacY + 4 * pacMoveY * PACSPEED) - enemyY[i]) > 0 && ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1)) {
+                            enemyMoveX[i] = 0;
+                            enemyMoveY[i] = 1;
                         }
                         else {
                             count = (int) (Math.random() * count);
                             if (count > 3) {
                                 count = 3;
                             }
-                            ghost_dx[i] = dx[count];
-                            ghost_dy[i] = dy[count];
+                            enemyMoveX[i] = moveX[count];
+                            enemyMoveY[i] = moveY[count];
                         }
                         break;
                     case 2: // powder ghost
+                    	// scared behavior is to move down and to the right
                         if (ghostScatter) {
-                            if ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1) {
-                                ghost_dx[i] = 1;
-                                ghost_dy[i] = 0;
+                            if ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1) {
+                                enemyMoveX[i] = 1;
+                                enemyMoveY[i] = 0;
                             }
-                            else if ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1) {
-                                ghost_dx[i] = 0;
-                                ghost_dy[i] = 1;
+                            else if ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1) {
+                                enemyMoveX[i] = 0;
+                                enemyMoveY[i] = 1;
                             }
                             else {
                                 count = (int) (Math.random() * count);
                                 if (count > 3) {
                                     count = 3;
                                 }
-                                ghost_dx[i] = dx[count];
-                                ghost_dy[i] = dy[count];
+                                enemyMoveX[i] = moveX[count];
+                                enemyMoveY[i] = moveY[count];
                             }
                         }
-                        else if ((ghost_x[i] - (pacman_x + 2*((pacman_x + 2 * PACMAN_SPEED * pacmand_x) - ghost_x[0]))) > 0 && ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1)) {
-                            ghost_dx[i] = -1;
-                            ghost_dy[i] = 0;
+                        // chase behavior is to try corner pacman against the red ghost
+                        else if ((enemyX[i] - (pacX + 2*((pacX + 2 * PACSPEED * pacMoveX) - enemyX[0]))) > 0 && ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1)) {
+                            enemyMoveX[i] = -1;
+                            enemyMoveY[i] = 0;
                         }
-                        else if ((ghost_y[i] - (pacman_y + 2*((pacman_y + 2 * PACMAN_SPEED * pacmand_y) - ghost_y[0]))) > 0 && ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1)) {
-                            ghost_dx[i] = 0;
-                            ghost_dy[i] = -1;
+                        else if ((enemyY[i] - (pacY + 2*((pacY + 2 * PACSPEED * pacMoveY) - enemyY[0]))) > 0 && ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1)) {
+                            enemyMoveX[i] = 0;
+                            enemyMoveY[i] = -1;
                         }
-                        else if (((pacman_x + 2*((pacman_x + 2 * PACMAN_SPEED * pacmand_x)  - ghost_x[0])) - ghost_x[i]) > 0 && ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1)) {
-                            ghost_dx[i] = 1;
-                            ghost_dy[i] = 0;
+                        else if (((pacX + 2*((pacX + 2 * PACSPEED * pacMoveX)  - enemyX[0])) - enemyX[i]) > 0 && ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1)) {
+                            enemyMoveX[i] = 1;
+                            enemyMoveY[i] = 0;
                         }
-                        else if (((pacman_y + 2*((pacman_y + 2 * PACMAN_SPEED * pacmand_y)  - ghost_y[0])) - ghost_y[i]) > 0 && ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1)) {
-                            ghost_dx[i] = 0;
-                            ghost_dy[i] = 1;
+                        else if (((pacY + 2*((pacY + 2 * PACSPEED * pacMoveY)  - enemyY[0])) - enemyY[i]) > 0 && ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1)) {
+                            enemyMoveX[i] = 0;
+                            enemyMoveY[i] = 1;
                         }
                         else {
                             count = (int) (Math.random() * count);
                             if (count > 3) {
                                 count = 3;
                             }
-                            ghost_dx[i] = dx[count];
-                            ghost_dy[i] = dy[count];
+                            enemyMoveX[i] = moveX[count];
+                            enemyMoveY[i] = moveY[count];
                         }
                         break;
                     case 3: // orange ghost
-                        if ((Math.pow((ghost_x[i] - pacman_x), 2) + Math.pow((ghost_y[i] - pacman_y), 2)) > (64 * Math.pow(BLOCK_SIZE, 2))) {
-                            if ((ghost_x[i] - pacman_x) > 0 && ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1)) {
-                                ghost_dx[i] = -1;
-                                ghost_dy[i] = 0;
+                    	// orange ghsot move closer to pac man if far away, but then move towards the bottom left corner if he gets too close
+                        if ((Math.pow((enemyX[i] - pacX), 2) + Math.pow((enemyY[i] - pacY), 2)) > (64 * Math.pow(BLOCK_SIZE, 2))) {
+                            if ((enemyX[i] - pacX) > 0 && ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1)) {
+                                enemyMoveX[i] = -1;
+                                enemyMoveY[i] = 0;
                             }
-                            else if ((ghost_y[i] - pacman_y) > 0 && ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1)) {
-                                ghost_dx[i] = 0;
-                                ghost_dy[i] = -1;
+                            else if ((enemyY[i] - pacY) > 0 && ((levelData[pos] & 2) == 0 && enemyMoveY[i] != 1)) {
+                                enemyMoveX[i] = 0;
+                                enemyMoveY[i] = -1;
                             }
-                            else if ((pacman_x - ghost_x[i]) > 0 && ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1)) {
-                                ghost_dx[i] = 1;
-                                ghost_dy[i] = 0;
+                            else if ((pacX - enemyX[i]) > 0 && ((levelData[pos] & 4) == 0 && enemyMoveX[i] != -1)) {
+                                enemyMoveX[i] = 1;
+                                enemyMoveY[i] = 0;
                             }
-                            else if ((pacman_y - ghost_y[i]) > 0 && ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1)) {
-                                ghost_dx[i] = 0;
-                                ghost_dy[i] = 1;
+                            else if ((pacY - enemyY[i]) > 0 && ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1)) {
+                                enemyMoveX[i] = 0;
+                                enemyMoveY[i] = 1;
                             }
                             else {
                                 count = (int) (Math.random() * count);
                                 if (count > 3) {
                                     count = 3;
                                 }
-                                ghost_dx[i] = dx[count];
-                                ghost_dy[i] = dy[count];
+                                enemyMoveX[i] = moveX[count];
+                                enemyMoveY[i] = moveY[count];
                             }
                         }
                         else {
-                            if ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1) {
-                                ghost_dx[i] = -1;
-                                ghost_dy[i] = 0;
+                            if ((levelData[pos] & 1) == 0 && enemyMoveX[i] != 1) {
+                                enemyMoveX[i] = -1;
+                                enemyMoveY[i] = 0;
                             }
-                            else if ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1) {
-                                ghost_dx[i] = 0;
-                                ghost_dy[i] = 1;
+                            else if ((levelData[pos] & 8) == 0 && enemyMoveY[i] != -1) {
+                                enemyMoveX[i] = 0;
+                                enemyMoveY[i] = 1;
                             }
                             else {
                                 count = (int) (Math.random() * count);
                                 if (count > 3) {
                                     count = 3;
                                 }
-                                ghost_dx[i] = dx[count];
-                                ghost_dy[i] = dy[count];
+                                enemyMoveX[i] = moveX[count];
+                                enemyMoveY[i] = moveY[count];
                             }
                         }
                         break;
@@ -588,105 +622,132 @@ public class Board extends JPanel implements ActionListener {
                 }
 
             }
-            ghost_x[i] = ghost_x[i] + (ghost_dx[i] * ghostSpeed[i]);
-            ghost_y[i] = ghost_y[i] + (ghost_dy[i] * ghostSpeed[i]);
+            // update ghost sprites
+            enemyX[i] = enemyX[i] + (enemyMoveX[i] * ghostSpeed[i]);
+            enemyY[i] = enemyY[i] + (enemyMoveY[i] * ghostSpeed[i]);
+            // use timer flags to determine ghost state
             if (ghostRecovering)
-                g2d.drawImage(scaredIcon, ghost_x[i] + 1, ghost_y[i] + 1, this);
+                g2d.drawImage(scaredIcon, enemyX[i] + 1, enemyY[i] + 1, this);
             else if (ghostScared) {
-                    g2d.drawImage(scaredghost, ghost_x[i] + 1, ghost_y[i] + 1, this);
+                    g2d.drawImage(scaredghost, enemyX[i] + 1, enemyY[i] + 1, this);
             }
             else {
                 switch(i) {
                 case 0:
-                    g2d.drawImage(redghost, ghost_x[i] + 1, ghost_y[i] + 1, this);
+                    g2d.drawImage(redghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 case 1:
-                    g2d.drawImage(pinkghost, ghost_x[i] + 1, ghost_y[i] + 1, this);
+                    g2d.drawImage(pinkghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 case 2:
-                    g2d.drawImage(powderghost, ghost_x[i] + 1, ghost_y[i] + 1, this);
+                    g2d.drawImage(powderghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 case 3:
-                    g2d.drawImage(orangeghost, ghost_x[i] + 1, ghost_y[i] + 1, this);
+                    g2d.drawImage(orangeghost, enemyX[i] + 1, enemyY[i] + 1, this);
                     break;
                 }
             }
+            // if ghosts are scared, pacman can collide in order to score points and eat them
             if (ghostScared) {
-                if (pacman_x > (ghost_x[i] - 10) && pacman_x < (ghost_x[i] + 10)
-                        && pacman_y > (ghost_y[i] - 10) && pacman_y < (ghost_y[i] + 10)
+                if (pacX > (enemyX[i] - 20) && pacX < (enemyX[i] + 20)
+                        && pacY > (enemyY[i] - 20) && pacY < (enemyY[i] + 20)
                         && inGame) {
                     score += 100;
-                    ghost_x[i] = 2 * BLOCK_SIZE;
-                    ghost_y[i] = 2 * BLOCK_SIZE;
+                    enemyX[i] = 2 * BLOCK_SIZE;
+                    enemyY[i] = 2 * BLOCK_SIZE;
                     ghostSpeed[i] = 0;
+                    playSound(eatGhost);
                 }
             } 
+            // else if pacman gets too close, then pacman loses a life and respawns
             else {
-                if (pacman_x > (ghost_x[i] - 10) && pacman_x < (ghost_x[i] + 10)
-                        && pacman_y > (ghost_y[i] - 10) && pacman_y < (ghost_y[i] + 10)
+                if (pacX > (enemyX[i] - 20) && pacX < (enemyX[i] + 20)
+                        && pacY > (enemyY[i] - 20) && pacY < (enemyY[i] + 20)
                         && inGame) {
-                    dying = true;
+                    lifeLost = true;
+                    playSound(death);
                 }
             }
         }
     }
     
-    
+    // method to move pacman around the maze
     private void movePacman() {
         int pos;
-        short ch;
-        if (req_dx == -pacmand_x && req_dy == -pacmand_y) {
-            pacmand_x = req_dx;
-            pacmand_y = req_dy;
-            view_dx = pacmand_x;
-            view_dy = pacmand_y;
+        int ch;
+        if (requestX == -pacMoveX && requestY == -pacMoveY) {
+            pacMoveX = requestX;
+            pacMoveY = requestY;
+            viewX = pacMoveX;
+            viewY = pacMoveY;
         }
-        if (pacman_x % BLOCK_SIZE == 0 && pacman_y % BLOCK_SIZE == 0) {
-            pos = pacman_x / BLOCK_SIZE + N_BLOCKS * (int) (pacman_y / BLOCK_SIZE);
-            ch = screenData[pos];
-            if ((ch & 16) != 0) {
-                screenData[pos] = (short) (ch & 15);
+        if (pacX % BLOCK_SIZE == 0 && pacY % BLOCK_SIZE == 0) {
+            pos = pacX / BLOCK_SIZE + BLOCKS_N * (int) (pacY / BLOCK_SIZE);
+            ch = levelData[pos];
+            if ((ch & 16) != 0) { // score points for eating pellets
+                levelData[pos] = (int) (ch & 15);
+                if (chompplaying)
+                	chompplaying = false;
+                else {
+                	playSound(chomp);
+                	chompplaying = true;
+                }
                 score++;
             }
-            if ((ch & 32) != 0) {
-                screenData[pos] = (short) (ch & 31);
+            if ((ch & 32) != 0) { // collect power ups to gain points and to make ghosts vulnerable
+                levelData[pos] = (int) (ch & 31);
                 score++;
-                scare.restart();
+                if (chompplaying)
+                	chompplaying = false;
+                else {
+                	playSound(chomp);
+                	chompplaying = true;
+                }
+                scare.restart(); // start scared timer and recovering timers
                 recover.restart();
-                scatter.stop();
+                scatter.stop(); // stop scatter and chase behavior timers
                 chase.stop();
-                ghostScared = true;
+                ghostScared = true; // set ghost state to scared
                 ghostRecovering = false;
             }
-            if (req_dx != 0 || req_dy != 0) {
-                if (!((req_dx == -1 && req_dy == 0 && (ch & 1) != 0)
-                        || (req_dx == 1 && req_dy == 0 && (ch & 4) != 0)
-                        || (req_dx == 0 && req_dy == -1 && (ch & 2) != 0)
-                        || (req_dx == 0 && req_dy == 1 && (ch & 8) != 0))) {
-                    pacmand_x = req_dx;
-                    pacmand_y = req_dy;
-                    view_dx = pacmand_x;
-                    view_dy = pacmand_y;
+            if ((ch & 64) != 0) { // eat bonus cheery
+            	levelData[pos] = (int) (ch & 63);
+            	score += 100;
+            	playSound(eatFruit);
+            }
+            // check that player is request valid moves
+            if (requestX != 0 || requestY != 0) {
+                if (!((requestX == -1 && requestY == 0 && (ch & 1) != 0)
+                        || (requestX == 1 && requestY == 0 && (ch & 4) != 0)
+                        || (requestX == 0 && requestY == -1 && (ch & 2) != 0)
+                        || (requestX == 0 && requestY == 1 && (ch & 8) != 0))) {
+                	// if move is valid, move pacman in that direction
+                    pacMoveX = requestX;
+                    pacMoveY = requestY;
+                    viewX = pacMoveX; // set the direction pacman is facing for drawing
+                    viewY = pacMoveY;
                 }
             }
             
-            if ((pacmand_x == -1 && pacmand_y == 0 && (ch & 1) != 0)
-                    || (pacmand_x == 1 && pacmand_y == 0 && (ch & 4) != 0)
-                    || (pacmand_x == 0 && pacmand_y == -1 && (ch & 2) != 0)
-                    || (pacmand_x == 0 && pacmand_y == 1 && (ch & 8) != 0)) {
-                pacmand_x = 0;
-                pacmand_y = 0;
+            if ((pacMoveX == -1 && pacMoveY == 0 && (ch & 1) != 0)
+                    || (pacMoveX == 1 && pacMoveY == 0 && (ch & 4) != 0)
+                    || (pacMoveX == 0 && pacMoveY == -1 && (ch & 2) != 0)
+                    || (pacMoveX == 0 && pacMoveY == 1 && (ch & 8) != 0)) {
+                pacMoveX = 0;
+                pacMoveY = 0;
             }
         }
-        pacman_x = pacman_x + PACMAN_SPEED * pacmand_x;
-        pacman_y = pacman_y + PACMAN_SPEED * pacmand_y;
+        // change pacmans position according to move direction and speed
+        pacX = pacX + PACSPEED * pacMoveX;
+        pacY = pacY + PACSPEED * pacMoveY;
     }
+    // use if else to check for pacman's direction and draw him in that direction
     private void drawPacman(Graphics2D g2d) {
-        if (view_dx == -1) {
+        if (viewX == -1) {
             drawPacmanLeft(g2d);
-        } else if (view_dx == 1) {
+        } else if (viewX == 1) {
             drawPacmanRight(g2d);
-        } else if (view_dy == -1) {
+        } else if (viewY == -1) {
             drawPacmanUp(g2d);
         } else {
             drawPacmanDown(g2d);
@@ -695,48 +756,48 @@ public class Board extends JPanel implements ActionListener {
     private void drawPacmanUp(Graphics2D g2d) {
         switch (pacmanAnimPos) {
             case 1:
-                g2d.drawImage(pacman2up, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacup1, pacX + 1, pacY + 1, this);
                 break;
             case 2:
-                g2d.drawImage(pacman3up, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacup2, pacX + 1, pacY + 1, this);
                 break;
             case 3:
-                g2d.drawImage(pacman4up, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacup3, pacX + 1, pacY + 1, this);
                 break;
             default:
-                g2d.drawImage(pacman1, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacman, pacX + 1, pacY + 1, this);
                 break;
         }
     }
     private void drawPacmanDown(Graphics2D g2d) {
         switch (pacmanAnimPos) {
             case 1:
-                g2d.drawImage(pacman2down, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacdown1, pacX + 1, pacY + 1, this);
                 break;
             case 2:
-                g2d.drawImage(pacman3down, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacdown2, pacX + 1, pacY + 1, this);
                 break;
             case 3:
-                g2d.drawImage(pacman4down, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacdown3, pacX + 1, pacY + 1, this);
                 break;
             default:
-                g2d.drawImage(pacman1, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacman, pacX + 1, pacY + 1, this);
                 break;
         }
     }
     private void drawPacmanLeft(Graphics2D g2d) {
         switch (pacmanAnimPos) {
             case 1:
-                g2d.drawImage(pacman2left, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacleft1, pacX + 1, pacY + 1, this);
                 break;
             case 2:
-                g2d.drawImage(pacman3left, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacleft2, pacX + 1, pacY + 1, this);
                 break;
             case 3:
-                g2d.drawImage(pacman4left, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacleft3, pacX + 1, pacY + 1, this);
                 break;
             default:
-                g2d.drawImage(pacman1, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacman, pacX + 1, pacY + 1, this);
                 break;
         }
     }
@@ -744,56 +805,62 @@ public class Board extends JPanel implements ActionListener {
     private void drawPacmanRight(Graphics2D g2d) {
         switch (pacmanAnimPos) {
             case 1:
-                g2d.drawImage(pacman2right, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacright1, pacX + 1, pacY + 1, this);
                 break;
             case 2:
-                g2d.drawImage(pacman3right, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacright2, pacX + 1, pacY + 1, this);
                 break;
             case 3:
-                g2d.drawImage(pacman4right, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacright3, pacX + 1, pacY + 1, this);
                 break;
             default:
-                g2d.drawImage(pacman1, pacman_x + 1, pacman_y + 1, this);
+                g2d.drawImage(pacman, pacX + 1, pacY + 1, this);
                 break;
         }
     }
 
+    // draw the maze
     private void drawMaze(Graphics2D g2d) {
-        short i = 0;
+        int i = 0;
         int x, y;
         for (y = 0; y < SCREEN_SIZE; y += BLOCK_SIZE) {
             for (x = 0; x < SCREEN_SIZE; x += BLOCK_SIZE) {
                 g2d.setColor(mazeColor);
                 g2d.setStroke(new BasicStroke(2));
-                if ((screenData[i] & 1) != 0) { 
+                if ((levelData[i] & 1) != 0) {  // draw barriers
                     g2d.drawLine(x, y, x, y + BLOCK_SIZE - 1);
                 }
-                if ((screenData[i] & 2) != 0) { 
+                if ((levelData[i] & 2) != 0) { 
                     g2d.drawLine(x, y, x + BLOCK_SIZE - 1, y);
                 }
-                if ((screenData[i] & 4) != 0) { 
+                if ((levelData[i] & 4) != 0) { 
                     g2d.drawLine(x + BLOCK_SIZE - 1, y, x + BLOCK_SIZE - 1,
                             y + BLOCK_SIZE - 1);
                 }
-                if ((screenData[i] & 8) != 0) { 
+                if ((levelData[i] & 8) != 0) { 
                     g2d.drawLine(x, y + BLOCK_SIZE - 1, x + BLOCK_SIZE - 1,
                             y + BLOCK_SIZE - 1);
                 }
-                if ((screenData[i] & 16) != 0) { 
+                if ((levelData[i] & 16) != 0) { // regular pellets
                     g2d.setColor(dotColor);
-                    g2d.fillRect(x + 11, y + 11, 2, 2);
+                    g2d.fillRect(x + 22, y + 22, 4, 4);
                 }
-                if ((screenData[i] & 32) != 0) { 
+                if ((levelData[i] & 32) != 0) { // power pellets
                     g2d.setColor(dotColor);
-                    g2d.fillRect(x + 11, y + 11, 8, 8);
+                    g2d.fillRect(x + 15, y + 15, 16, 16);
+                }
+                if ((levelData[i] & 64) != 0) { // power pellets
+                	g2d.drawImage(cherry, x, y, this);
                 }
                 i++;
             }
         }
+        
     }
 
+    // initialize game values
     private void initGame() {
-        pacsLeft = 4;
+        livesLeft = 4;
         score = 0;
         level = 1;
         initLevel(currentLevel);
@@ -801,27 +868,28 @@ public class Board extends JPanel implements ActionListener {
         currentSpeed = 1;
     }
     
+    // set level maze and rotate through level designs
     private void initLevel(int currentLevel) {
         int i;
         switch (currentLevel) {
         case (0) :
-        	for (i = 0; i < N_BLOCKS * N_BLOCKS; i++) {
-                screenData[i] = levelData[i];
+        	for (i = 0; i < BLOCKS_N * BLOCKS_N; i++) {
+                levelData[i] = mazeData[i];
             }
         	break;
         case(1) :
-        	for (i = 0; i < N_BLOCKS * N_BLOCKS; i++) {
-                screenData[i] = levelData2[i];
+        	for (i = 0; i < BLOCKS_N * BLOCKS_N; i++) {
+                levelData[i] = mazeData2[i];
             }
         	break;
         case(2) :
-        	for (i = 0; i < N_BLOCKS * N_BLOCKS; i++) {
-                screenData[i] = levelData3[i];
+        	for (i = 0; i < BLOCKS_N * BLOCKS_N; i++) {
+                levelData[i] = mazeData3[i];
             }
         	break;
         default :
-        	for (i = 0; i < N_BLOCKS * N_BLOCKS; i++) {
-                screenData[i] = levelData4[i];
+        	for (i = 0; i < BLOCKS_N * BLOCKS_N; i++) {
+                levelData[i] = mazeData4[i];
             }
         	break;
         }
@@ -832,33 +900,36 @@ public class Board extends JPanel implements ActionListener {
         continueLevel();
     }
 
+    // lose life and continue level from previous state
     private void continueLevel() {
-        short i;
-        int dx = 1;
+        int i;
+        int moveX = 1;
         int random;
-        for (i = 0; i < ghosts; i++) {
-            ghost_y[i] = 4 * BLOCK_SIZE;
-            ghost_x[i] = 4 * BLOCK_SIZE;
-            ghost_dy[i] = 0;
-            ghost_dx[i] = dx;
-            dx = -dx;
+        for (i = 0; i < ghosts; i++) { // respawn ghosts
+            enemyY[i] = 4 * BLOCK_SIZE;
+            enemyX[i] = 4 * BLOCK_SIZE;
+            enemyMoveY[i] = 0;
+            enemyMoveX[i] = moveX;
+            moveX = -moveX;
             random = (int) (Math.random() * (currentSpeed + 1));
             if (random > currentSpeed) {
                 random = currentSpeed;
             }
             ghostSpeed[i] = validSpeeds[random];
         }
-        pacman_x = 7 * BLOCK_SIZE;
-        pacman_y = 11 * BLOCK_SIZE;
-        pacmand_x = 0;
-        pacmand_y = 0;
-        req_dx = 0;
-        req_dy = 0;
-        view_dx = -1;
-        view_dy = 0;
-        dying = false;
+        pacX = 7 * BLOCK_SIZE; // respawn pacman
+        pacY = 11 * BLOCK_SIZE;
+        pacMoveX = 0;
+        pacMoveY = 0;
+        requestX = 0;
+        requestY = 0;
+        viewX = -1;
+        viewY = 0;
+        lifeLost = false;
+        
     }
 
+    // initialize sprites and sounds
     private void loadImages() {
         redghost = new ImageIcon("images/redghost.png").getImage();  // enemy image
         pinkghost = new ImageIcon("images/pinkghost.png").getImage();
@@ -866,19 +937,49 @@ public class Board extends JPanel implements ActionListener {
         orangeghost = new ImageIcon("images/orangeghost.png").getImage();
         scaredghost = new ImageIcon("images/scaredghost.png").getImage();
         scaredghost2 = new ImageIcon("images/scaredghost2.png").getImage();
-        pacman1 = new ImageIcon("images/pacman.png").getImage(); // full pacman
-        pacman2up = new ImageIcon("images/pacmanup1.png").getImage(); // begin opening
-        pacman3up = new ImageIcon("images/pacmanup2.png").getImage();
-        pacman4up = new ImageIcon("images/pacmanup3.png").getImage(); // completely open
-        pacman2down = new ImageIcon("images/pacmandown1.png").getImage();
-        pacman3down = new ImageIcon("images/pacmandown2.png").getImage();
-        pacman4down = new ImageIcon("images/pacmandown3.png").getImage();
-        pacman2left = new ImageIcon("images/pacmanleft1.png").getImage();
-        pacman3left = new ImageIcon("images/pacmanleft2.png").getImage();
-        pacman4left = new ImageIcon("images/pacmanleft3.png").getImage();
-        pacman2right = new ImageIcon("images/pacmanright1.png").getImage();
-        pacman3right = new ImageIcon("images/pacmanright2.png").getImage();
-        pacman4right = new ImageIcon("images/pacmanright3.png").getImage();
+        pacman = new ImageIcon("images/pacman.png").getImage(); // full pacman
+        pacup1 = new ImageIcon("images/pacmanup1.png").getImage(); // begin opening
+        pacup2 = new ImageIcon("images/pacmanup2.png").getImage();
+        pacup3 = new ImageIcon("images/pacmanup3.png").getImage(); // completely open
+        pacdown1 = new ImageIcon("images/pacmandown1.png").getImage();
+        pacdown2 = new ImageIcon("images/pacmandown2.png").getImage();
+        pacdown3 = new ImageIcon("images/pacmandown3.png").getImage();
+        pacleft1 = new ImageIcon("images/pacmanleft1.png").getImage();
+        pacleft2 = new ImageIcon("images/pacmanleft2.png").getImage();
+        pacleft3 = new ImageIcon("images/pacmanleft3.png").getImage();
+        pacright1 = new ImageIcon("images/pacmanright1.png").getImage();
+        pacright2 = new ImageIcon("images/pacmanright2.png").getImage();
+        pacright3 = new ImageIcon("images/pacmanright3.png").getImage();
+        cherry = new ImageIcon("images/cherry.png").getImage();
+        beginning = new File("sounds/pacman_beginning.wav");
+        death = new File("sounds/pacman_death.wav");
+        chomp = new File("sounds/pacman_chomp.wav");
+        eatGhost = new File("sounds/pacman_eatghost.wav");
+        eatFruit = new File("sounds/pacman_eatfruit.wav");
+    }
+    // play sound effect with no pause
+    public static void playSound (File sound) {
+    	try {
+    		clip = AudioSystem.getClip();
+    		clip.open(AudioSystem.getAudioInputStream(sound));
+    		clip.start();
+    		//Thread.sleep(clip.getMicrosecondLength()/1000);
+    	}
+    	catch (Exception e) {
+    		
+    	}
+    }
+    // play intro music with pause
+    public static void playMusic (File sound) {
+    	try {
+    		clip = AudioSystem.getClip();
+    		clip.open(AudioSystem.getAudioInputStream(sound));
+    		clip.start();
+    		Thread.sleep(clip.getMicrosecondLength()/1000);
+    	}
+    	catch (Exception e) {
+    		
+    	}
     }
 
     @Override
@@ -903,36 +1004,31 @@ public class Board extends JPanel implements ActionListener {
         Toolkit.getDefaultToolkit().sync();
         g2d.dispose();
     }
-
-    class TAdapter extends KeyAdapter {
+    
+    
+    // game controls
+    class Controls extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e) {
             int key = e.getKeyCode();
             if (inGame) {
                 if (key == KeyEvent.VK_LEFT) {
-                    req_dx = -1;
-                    req_dy = 0;
+                    requestX = -1;
+                    requestY = 0;
                 } else if (key == KeyEvent.VK_RIGHT) {
-                    req_dx = 1;
-                    req_dy = 0;
+                    requestX = 1;
+                    requestY = 0;
                 } else if (key == KeyEvent.VK_UP) {
-                    req_dx = 0;
-                    req_dy = -1;
+                    requestX = 0;
+                    requestY = -1;
                 } else if (key == KeyEvent.VK_DOWN) {
-                    req_dx = 0;
-                    req_dy = 1;
+                    requestX = 0;
+                    requestY = 1;
                 } else if (key == KeyEvent.VK_ESCAPE && timer.isRunning()) {
                     inGame = false;
                 } 
-                else if (key == KeyEvent.VK_C) {
-                	currentLevel++;
-                	if (currentLevel == 4)
-                    	currentLevel = 0;
-                	level++;
-                	if (currentSpeed < maxSpeed)
-                    currentSpeed++;
-                	initLevel(currentLevel);
-                }else if (key == KeyEvent.VK_P) {
+
+                else if (key == KeyEvent.VK_P) {
                 
                     if (timer.isRunning()) {
                         timer.stop();
@@ -943,7 +1039,9 @@ public class Board extends JPanel implements ActionListener {
             } else {
                 if (key == KeyEvent.VK_ENTER) {
                     inGame = true;
+                    
                     initGame();
+                    playMusic(beginning);
                 }
             }
         }
@@ -953,8 +1051,8 @@ public class Board extends JPanel implements ActionListener {
             int key = e.getKeyCode();
             if (key == Event.LEFT || key == Event.RIGHT
                     || key == Event.UP || key == Event.DOWN) {
-                req_dx = 0;
-                req_dy = 0;
+                requestX = 0;
+                requestY = 0;
             }
         }
     }
