@@ -62,6 +62,7 @@ public class Board extends JPanel implements ActionListener {
     private static Clip clip;
     private File beginning, eatGhost, death, eatFruit, chomp;
     private boolean chompplaying = false;
+    private boolean sound = true;
 
    
 
@@ -200,8 +201,8 @@ public class Board extends JPanel implements ActionListener {
             27, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 28
 
             };
-    private final int validSpeeds[] = {2, 4, 6, 8, 12};
-    private final int maxSpeed = 4;
+    private final int validSpeeds[] = {2, 4, 6, 8};
+    private final int maxSpeed = 3;
 
     private int currentSpeed = 1;
     private int[] levelData;
@@ -338,8 +339,8 @@ public class Board extends JPanel implements ActionListener {
         g2d.fillRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50 +  BLOCK_SIZE);
         g2d.setColor(Color.white);
         g2d.drawRect(50, SCREEN_SIZE / 2 - 30, SCREEN_SIZE - 100, 50 + BLOCK_SIZE);
-        String s = "Press Enter to start";
-        String s2 = "Press ESC to exit and P to Pause";
+        String s = "Press Enter to start and ESC to exit";
+        String s2 = "Press P to Pause and M to Mute";
         Font small = new Font("Times New Roman", Font.BOLD, 24);
         FontMetrics metr = this.getFontMetrics(small);
         g2d.setColor(Color.white);
@@ -656,7 +657,8 @@ public class Board extends JPanel implements ActionListener {
                     enemyX[i] = 2 * BLOCK_SIZE;
                     enemyY[i] = 2 * BLOCK_SIZE;
                     ghostSpeed[i] = 0;
-                    playSound(eatGhost);
+                    if(sound)
+                    	playSound(eatGhost);
                 }
             } 
             // else if pacman gets too close, then pacman loses a life and respawns
@@ -665,7 +667,8 @@ public class Board extends JPanel implements ActionListener {
                         && pacY > (enemyY[i] - 20) && pacY < (enemyY[i] + 20)
                         && inGame) {
                     lifeLost = true;
-                    playSound(death);
+                    if(sound)
+                    	playSound(death);
                 }
             }
         }
@@ -689,7 +692,8 @@ public class Board extends JPanel implements ActionListener {
                 if (chompplaying)
                 	chompplaying = false;
                 else {
-                	playSound(chomp);
+                	if(sound)
+                		playSound(chomp);
                 	chompplaying = true;
                 }
                 score++;
@@ -700,7 +704,8 @@ public class Board extends JPanel implements ActionListener {
                 if (chompplaying)
                 	chompplaying = false;
                 else {
-                	playSound(chomp);
+                	if(sound)
+                		playSound(chomp);
                 	chompplaying = true;
                 }
                 scare.restart(); // start scared timer and recovering timers
@@ -713,7 +718,8 @@ public class Board extends JPanel implements ActionListener {
             if ((ch & 64) != 0) { // eat bonus cheery
             	levelData[pos] = (int) (ch & 63);
             	score += 100;
-            	playSound(eatFruit);
+            	if(sound)
+            		playSound(eatFruit);
             }
             // check that player is request valid moves
             if (requestX != 0 || requestY != 0) {
@@ -963,7 +969,6 @@ public class Board extends JPanel implements ActionListener {
     		clip = AudioSystem.getClip();
     		clip.open(AudioSystem.getAudioInputStream(sound));
     		clip.start();
-    		//Thread.sleep(clip.getMicrosecondLength()/1000);
     	}
     	catch (Exception e) {
     		
@@ -1036,12 +1041,19 @@ public class Board extends JPanel implements ActionListener {
                         timer.start();
                     }
                 }
+                else if (key == KeyEvent.VK_M) {
+                	if (sound)
+                		sound = false;
+                	else
+                		sound = true;
+                }
             } else {
                 if (key == KeyEvent.VK_ENTER) {
                     inGame = true;
                     
                     initGame();
-                    playMusic(beginning);
+                    if(sound)
+                    	playMusic(beginning);
                 }
             }
         }
